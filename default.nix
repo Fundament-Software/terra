@@ -1,6 +1,11 @@
 { sources ? import ./nix/sources.nix, enableCUDA ? false }:
 
 let
+  avr_llvm = llvmPackages.llvm.overrideAttrs (oldAttrs: rec {
+    cmakeFlags = oldAttrs.cmakeFlags ++ [
+      "-DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=AVR"
+    ];
+  });
 
   overlay = _: pkgs: { niv = (import sources.niv { }).niv; };
 
@@ -33,7 +38,12 @@ in stdenv.mkDerivation rec {
   buildInputs = [
     (symlinkJoin {
       name = "llvmClangMerged";
-      paths = with llvmPackages; [ llvm clang-unwrapped ];
+      paths = with llvmPackages; [
+        avr_llvm
+        (clang-unwrapped.overrideAttrs (oldAttrs: rec {
+          buildInputs = [ libxml2 avr_llvm lld ];
+        }))
+      ];
     })
     ncurses
     libxml2
